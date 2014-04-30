@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Github Starred Repo ngTable</title>
+  <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.0.4/css/bootstrap-combined.min.css">
+  <link rel="stylesheet" href="https://raw.githubusercontent.com/esvit/ng-table/master/ng-table.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.0-beta.6/angular.min.js"></script>
+  <script type="text/javascript" src="ng-table.min.js"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/lodash.js/2.4.1/lodash.min.js"></script>
+</head>
+<body>
+    <div ng-app="app">
+      <h2>a list part</h2>
+      <div ng-controller="TodoCtrl">
+        <p><strong>Sorting:</strong> {{tableParams.sorting()|json}}
+          <p><strong>Filter:</strong> {{tableParams.filter()|json}}
+        <table class="table" ng-table="tableParams" show-filter="true" >
+          <!-- <tr><th sortable>stargazers_count</th><th sortable>full_name</th><th>description</th><th>language</th></tr> -->
+          <tr ng-repeat="i in $data">
+            <td data-title="'stargazers_count'" sortable="'stargazers_count'">{{i.stargazers_count}}</td>
+            <td data-title="'full_name'" sortable="'full_name'"><a href="{{i.home_url}}">{{i.full_name}}</a></td>
+            <td data-title="'desp'" filter="{ 'description': 'text' }">{{i.description}}</td>
+            <td data-title="'language'" sortable="'language'" filter="{ 'language': 'select' }" filter-data="languages($column)">{{i.language}}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    <script type="text/javascript">
+    var app = angular.module('app',['ngTable']);
+    app.controller('TodoCtrl',function TodoCtrl($scope, $http, ngTableParams, $filter, $q, $timeout) {
+      $http.get('http://localhost:5000/api/v1/github_starred').then(function(resp) {
+        $scope.repos = _.pluck(resp.data._items, 'star');
+        $scope.tableParams = new ngTableParams({
+          'sorting': {
+            stargazers_count: 'asc'
+          }
+        }, {
+          total: $scope.repos.length,
+          getData: function($defer, params) {
+            var orderedData =  params.sorting() ?
+              $filter('orderBy')($scope.repos, params.orderBy()) :
+              $scope.repos;
+            var filteredData = params.filter() ?
+                               $filter('filter')(orderedData, params.filter()) :
+                               orderedData;
+            $defer.resolve(filteredData);
+          }
+        });
+      });
+
+      $scope.languages = function(column) {
+        var def = $q.defer(),
+            arr = [],
+            languages = [];
+        $timeout(function() {
+          angular.forEach($scope.repos, function(item){
+              if (inArray(item.language, arr) === -1) {
+                  arr.push(item.language);
+                  languages.push({
+                      'id': item.language,
+                      'title': item.language
+                  });
+              }
+          });
+          def.resolve(languages);
+        }, 3000);
+        return def;
+      };
+
+
+      var inArray = Array.prototype.indexOf ?
+                  function (val, arr) {
+                      return arr.indexOf(val)
+                  } :
+                  function (val, arr) {
+                      var i = arr.length;
+                      while (i--) {
+                          if (arr[i] === val) return i;
+                      }
+                      return -1;
+                  }
+    });
+    </script>
+</body>
+</html>
